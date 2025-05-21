@@ -1,0 +1,55 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "publish.fullname" . }}
+  labels:
+    {{- include "publish.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.cron.schedule }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          {{- with .Values.defaults.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          initContainers:
+            - name: downloader
+              image: {{ .Values.cron.downloader.image}}
+              command: ["/bin/sh", "-c"]
+              args:
+                - {{ .Values.cron.downloader.command | toYaml | indent 16 }}
+              volumeMounts:
+                - name: temp
+                  mountPath: /download
+                  readOnly: false
+          containers:
+            - name: quartz
+              image: {{ .Values.cron.generator.image }}
+              command: ["/bin/sh", "-c"]
+              args:
+                - {{ .Values.cron.generator.command | toYaml | indent 16 }}
+              volumeMounts:
+                - name: html
+                  mountPath: /app/quartz/public
+                  readOnly: false
+                - name: temp
+                  mountPath: /app/quartz/content
+                - name: quartz-config
+                  mountPath: /app/quartz/quartz.config.ts
+                  subPath: quartz.config.ts
+                - name: quartz-config
+                  mountPath: /app/quartz/quartz.layout.ts
+                  subPath: quartz.layout.ts
+          restartPolicy: OnFailure
+          volumes:
+            - name: html
+              persistentVolumeClaim:
+                claimName: {{ include "publish.fullname" . }}
+            - name: temp
+              emptyDir: {}
+            - name: quartz-config
+              configMap:
+                name: {{ include "publish.fullname" . }}-quartz-config
+

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "publish.fullname" . }}-quartz-config
+  labels: {{- include "publish.labels" . | nindent 4 }}
+data:
+  quartz.config.ts: {{ .Values.cron.quartz.config | toYaml | indent 4 }}
+  quartz.layout.ts: {{ .Values.cron.quartz.layout | toYaml | indent 4 }}

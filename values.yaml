@@ -1,0 +1,239 @@
+defaults:
+  imagePullSecrets: []
+
+nginx:
+  image: docker.io/nginx:latest
+  imagePullPolicy: IfNotPresent
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+  config: |
+    server {
+      listen       8080;
+      listen  [::]:8080;
+      server_name  foobar.0x2b.de;
+
+      #access_log  /var/log/nginx/host.access.log  main;
+
+      location / {
+          root   /usr/share/nginx/html;
+          index  index.html index.htm;
+          try_files $uri $uri.html $uri/ =404;
+      }
+
+      # /health always returns 200
+      location /health {
+          return 200;
+      }
+
+      #error_page  404              /404.html;
+
+      # redirect server error pages to the static page /50x.html
+      #
+      error_page   500 502 503 504  /50x.html;
+      location = /50x.html {
+          root   /usr/share/nginx/html;
+      }
+    }
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+  hostname: foobar.example.com
+  tls:
+    enabled: true
+    secretName: nginx-tls
+
+cron:
+  schedule: "13 21 * * *"
+  downloader:
+    image: ghcr.io/felixzmn/docker/megacmd:2.1.1
+    command: |
+      sleep 3600
+  generator:
+    image: ghcr.io/felixzmn/docker/quartz:4.5.0
+    command: |
+      npx quartz build --directory /app/quartz/content --output /app/quartz/public && \
+      chmod -R a+r /app/quartz/public
+  quartz:
+    config: |-
+      import { QuartzConfig } from "./quartz/cfg"
+      import * as Plugin from "./quartz/plugins"
+
+      /**
+      * Quartz 4 Configuration
+      *
+      * See https://quartz.jzhao.xyz/configuration for more information.
+      */
+      const config: QuartzConfig = {
+        configuration: {
+          pageTitle: "🌳 My Digital Garden",
+          pageTitleSuffix: "",
+          enableSPA: true,
+          enablePopovers: true,
+          analytics: {
+            provider: null,
+          },
+          locale: "de-DE",
+          baseUrl: "garden.example.com",
+          ignorePatterns: ["private", "Templates", ".obsidian"],
+          defaultDateType: "created",
+          theme: {
+            fontOrigin: "googleFonts",
+            cdnCaching: true,
+            typography: {
+              header: "Schibsted Grotesk",
+              body: "Source Sans Pro",
+              code: "IBM Plex Mono",
+            },
+            colors: {
+              lightMode: {
+                light: "#faf8f8",
+                lightgray: "#e5e5e5",
+                gray: "#b8b8b8",
+                darkgray: "#4e4e4e",
+                dark: "#2b2b2b",
+                secondary: "#284b63",
+                tertiary: "#84a59d",
+                highlight: "rgba(143, 159, 169, 0.15)",
+                textHighlight: "#fff23688",
+              },
+              darkMode: {
+                light: "#161618",
+                lightgray: "#393639",
+                gray: "#646464",
+                darkgray: "#d4d4d4",
+                dark: "#ebebec",
+                secondary: "#7b97aa",
+                tertiary: "#84a59d",
+                highlight: "rgba(143, 159, 169, 0.15)",
+                textHighlight: "#b3aa0288",
+              },
+            },
+          },
+        },
+        plugins: {
+          transformers: [
+            Plugin.FrontMatter(),
+            Plugin.CreatedModifiedDate({
+              priority: ["frontmatter", "filesystem"],
+            }),
+            Plugin.SyntaxHighlighting({
+              theme: {
+                light: "github-light",
+                dark: "github-dark",
+              },
+              keepBackground: false,
+            }),
+            Plugin.ObsidianFlavoredMarkdown({ enableInHtmlEmbed: false }),
+            Plugin.GitHubFlavoredMarkdown(),
+            Plugin.TableOfContents(),
+            Plugin.CrawlLinks({ markdownLinkResolution: "shortest" }),
+            Plugin.Description(),
+            Plugin.Latex({ renderEngine: "katex" }),
+          ],
+          filters: [Plugin.RemoveDrafts()],
+          emitters: [
+            Plugin.AliasRedirects(),
+            Plugin.ComponentResources(),
+            Plugin.ContentPage(),
+            Plugin.FolderPage(),
+            Plugin.TagPage(),
+            Plugin.ContentIndex({
+              enableSiteMap: true,
+              enableRSS: true,
+            }),
+            Plugin.Assets(),
+            Plugin.Static(),
+            Plugin.NotFoundPage(),
+            // Comment out CustomOgImages to speed up build time
+            Plugin.CustomOgImages(),
+          ],
+        },
+      }
+
+      export default config
+    layout: |-
+      import { PageLayout, SharedLayout } from "./quartz/cfg"
+      import * as Component from "./quartz/components"
+
+      // components shared across all pages
+      export const sharedPageComponents: SharedLayout = {
+        head: Component.Head(),
+        header: [],
+        afterBody: [],
+        footer: Component.Footer({
+          //links: {
+          //  GitHub: "https://github.com/jackyzha0/quartz",
+          //  "Discord Community": "https://discord.gg/cRFFHYye7t",
+          //},
+        }),
+      }
+
+      // components for pages that display a single page (e.g. a single note)
+      export const defaultContentPageLayout: PageLayout = {
+        beforeBody: [
+          Component.Breadcrumbs(),
+          Component.ArticleTitle(),
+          Component.ContentMeta(),
+          Component.TagList(),
+        ],
+        left: [
+          Component.PageTitle(),
+          Component.MobileOnly(Component.Spacer()),
+          Component.Flex({
+            components: [
+              {
+                Component: Component.Search(),
+                grow: true,
+              },
+              { Component: Component.Darkmode() },
+            ],
+          }),
+          Component.Explorer(),
+        ],
+        right: [
+          //Component.Graph(),
+          Component.DesktopOnly(Component.TableOfContents()),
+          Component.Backlinks(),
+        ],
+      }
+
+      // components for pages that display lists of pages  (e.g. tags or folders)
+      export const defaultListPageLayout: PageLayout = {
+        beforeBody: [Component.Breadcrumbs(), Component.ArticleTitle(), Component.ContentMeta()],
+        left: [
+          Component.PageTitle(),
+          Component.MobileOnly(Component.Spacer()),
+          Component.Flex({
+            components: [
+              {
+                Component: Component.Search(),
+                grow: true,
+              },
+              { Component: Component.Darkmode() },
+            ],
+          }),
+          Component.Explorer(),
+        ],
+        right: [],
+      }
