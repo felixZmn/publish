@@ -1,53 +1,56 @@
 defaults:
   imagePullSecrets: []
 
-nginx:
-  image: docker.io/nginx:latest
-  imagePullPolicy: IfNotPresent
-  replicaCount: 1
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 200m
-      memory: 256Mi
-  livenessProbe:
-    httpGet:
-      path: /health
-      port: http
-  readinessProbe:
-    httpGet:
-      path: /health
-      port: http
-  config: |
-    server {
-      listen       8080;
-      listen  [::]:8080;
-      server_name  foobar.0x2b.de;
+image: docker.io/nginx:latest
+imagePullPolicy: IfNotPresent
+replicaCount: 1
 
-      #access_log  /var/log/nginx/host.access.log  main;
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
 
-      location / {
-          root   /usr/share/nginx/html;
-          index  index.html index.htm;
-          try_files $uri $uri.html $uri/ =404;
-      }
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
 
-      # /health always returns 200
-      location /health {
-          return 200;
-      }
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
 
-      #error_page  404              /404.html;
+config: |
+  server {
+    listen       8080;
+    listen  [::]:8080;
+    server_name  foobar.0x2b.de;
 
-      # redirect server error pages to the static page /50x.html
-      #
-      error_page   500 502 503 504  /50x.html;
-      location = /50x.html {
-          root   /usr/share/nginx/html;
-      }
+    #access_log  /var/log/nginx/host.access.log  main;
+
+    location / {
+        root   /usr/share/nginx/html;
+        index  index.html index.htm;
+        try_files $uri $uri.html $uri/ =404;
     }
+
+    # /health always returns 200
+    location /health {
+        return 200;
+    }
+
+    #error_page  404              /404.html;
+
+    # redirect server error pages to the static page /50x.html
+    #
+    error_page   500 502 503 504  /50x.html;
+    location = /50x.html {
+        root   /usr/share/nginx/html;
+    }
+  }
 
 service:
   type: ClusterIP

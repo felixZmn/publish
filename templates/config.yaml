@@ -4,4 +4,4 @@ metadata:
   name: {{ include "publish.fullname" . }}
   labels: {{- include "publish.labels" . | nindent 4 }}
 data:
-  default.conf: {{ .Values.nginx.config | toYaml | indent 4 }}
+  default.conf: {{ .Values.config | toYaml | indent 4 }}
