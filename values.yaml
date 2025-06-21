@@ -5,6 +5,9 @@ image: docker.io/nginx:latest
 imagePullPolicy: IfNotPresent
 replicaCount: 1
 
+networkPolicy:
+  enabled: true
+
 resources:
   requests:
     cpu: 100m
