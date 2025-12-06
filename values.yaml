@@ -60,6 +60,7 @@ service:
   port: 8080
 
 ingress:
+  enabled: false
   className: nginx
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
@@ -68,6 +69,21 @@ ingress:
   tls:
     enabled: true
     secretName: nginx-tls
+
+httpRoute:
+  enabled: false
+  annotations: {}
+  parentRefs:
+  - name: gateway
+    sectionName: http
+    namespace: default
+  hostnames:
+  - foobar.example.com
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
 
 cron:
   schedule: "13 21 * * *"
