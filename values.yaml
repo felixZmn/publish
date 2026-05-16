@@ -35,7 +35,7 @@ config: |
     #access_log  /var/log/nginx/host.access.log  main;
 
     location / {
-        root   /usr/share/nginx/html;
+        root   /usr/share/nginx/html/public;
         index  index.html index.htm;
         try_files $uri $uri.html $uri/ =404;
     }
@@ -88,13 +88,13 @@ httpRoute:
 cron:
   schedule: "13 21 * * *"
   downloader:
-    image: ghcr.io/felixzmn/docker/megacmd:2.1.1
+    image: ghcr.io/felixzmn/docker/megacmd:2.2.0
     command: |
       sleep 3600
   generator:
-    image: ghcr.io/felixzmn/docker/quartz:4.5.0
+    image: ghcr.io/felixzmn/docker/quartz:4.5.2
     command: |
-      npx quartz build --directory /app/quartz/content --output /app/quartz/public && \
+      npx quartz build --directory /app/quartz/content --output /app/quartz/public/public && \
       chmod -R a+r /app/quartz/public
   quartz:
     config: |-
